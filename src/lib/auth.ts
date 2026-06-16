@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { login as apiLogin, logout as apiLogout, getAuthToken, setAuthToken } from "./api";
 
-const KEY = "grocery.auth.v1";
 export const DEFAULT_EMAIL = "admin@mart.com";
 export const DEFAULT_PAD = "56085341";
 
@@ -10,25 +9,21 @@ export function useAuth() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Check if token exists in memory (from previous session)
+    // Check if token exists in memory
     const token = getAuthToken();
-    const storedAuth = localStorage.getItem(KEY) === "1";
-    
-    if (token && storedAuth) {
+    if (token) {
       setAuthed(true);
     }
     setLoading(false);
     
-    const handleStorage = () => {
-      setAuthed(localStorage.getItem(KEY) === "1");
+    const handleAuthChange = () => {
+      const token = getAuthToken();
+      setAuthed(!!token);
     };
     
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("auth-change", handleStorage);
-    
+    window.addEventListener("auth-change", handleAuthChange);
     return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("auth-change", handleStorage);
+      window.removeEventListener("auth-change", handleAuthChange);
     };
   }, []);
 
@@ -36,7 +31,6 @@ export function useAuth() {
     try {
       const response = await apiLogin(email, pad);
       if (response.token) {
-        localStorage.setItem(KEY, "1");
         window.dispatchEvent(new Event("auth-change"));
         return true;
       }
@@ -49,7 +43,6 @@ export function useAuth() {
 
   const logout = async () => {
     await apiLogout();
-    localStorage.removeItem(KEY);
     window.dispatchEvent(new Event("auth-change"));
   };
 

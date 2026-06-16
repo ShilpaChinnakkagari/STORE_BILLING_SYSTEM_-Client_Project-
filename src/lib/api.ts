@@ -1,7 +1,7 @@
 // API Base URL
 const API_BASE_URL = 'http://localhost:8080/api';
 
-// Store token in memory (not localStorage for security)
+// Store token in memory only
 let authToken: string | null = null;
 
 // Helper to get headers with auth token
@@ -25,7 +25,7 @@ export const clearAuthToken = () => {
   authToken = null;
 };
 
-// Get current auth token (for checking)
+// Get current auth token
 export const getAuthToken = () => authToken;
 
 // ============ AUTH API ============
@@ -123,8 +123,88 @@ export const createSale = async (saleData: any) => {
   return response.json();
 };
 
-// ============ EXPENSES API (to be added) ============
-// These will be implemented when we add Expense API in backend
+// ============ EXPENSES API (FIXED) ============
+export const getExpenses = async () => {
+  try {
+    console.log('📡 Fetching expenses from:', `${API_BASE_URL}/expenses`);
+    const response = await fetch(`${API_BASE_URL}/expenses`, {
+      headers: getHeaders(),
+    });
+    
+    console.log('📡 Response status:', response.status);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch expenses: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('📡 Raw expenses data:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching expenses:', error);
+    throw error;
+  }
+};
 
-// ============ STOCK MOVEMENTS API (to be added) ============
-// These will be implemented when we add Stock API in backend
+export const getExpensesByDate = async (date: string) => {
+  const response = await fetch(`${API_BASE_URL}/expenses/date/${date}`, {
+    headers: getHeaders(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch expenses by date');
+  return response.json();
+};
+
+export const getExpensesByCategory = async (category: string) => {
+  const response = await fetch(`${API_BASE_URL}/expenses/category/${category}`, {
+    headers: getHeaders(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch expenses by category');
+  return response.json();
+};
+
+export const createExpense = async (expenseData: any) => {
+  try {
+    console.log('📤 Creating expense:', expenseData);
+    const response = await fetch(`${API_BASE_URL}/expenses`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(expenseData),
+    });
+    
+    console.log('📤 Response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create expense: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('📤 Created expense response:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error creating expense:', error);
+    throw error;
+  }
+};
+
+export const deleteExpense = async (id: string) => {
+  try {
+    console.log('🗑️ Deleting expense:', id);
+    const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    
+    console.log('🗑️ Response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to delete expense: ${response.status} - ${errorText}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting expense:', error);
+    throw error;
+  }
+};

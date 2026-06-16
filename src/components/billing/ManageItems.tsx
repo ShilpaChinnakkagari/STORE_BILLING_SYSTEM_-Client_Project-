@@ -1,17 +1,30 @@
 import { useItems, formatMoney, useStockMovements } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, RefreshCw } from "lucide-react";
 import { AddItemDialog } from "./AddItemDialog";
 import { StockInDialog } from "./StockInDialog";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 
 export function ManageItems() {
   const { items, removeItem } = useItems();
-  const { movements } = useStockMovements();
+  const { movements, loadMovements } = useStockMovements();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Load movements when component mounts
+  useEffect(() => {
+    loadMovements();
+  }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadMovements();
+    setRefreshing(false);
+    toast.success("Stock data refreshed");
+  };
 
   const totals = useMemo(() => {
     const m: Record<string, { in: number; out: number }> = {};
@@ -33,6 +46,15 @@ export function ManageItems() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`mr-1 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> 
+            Refresh
+          </Button>
           <StockInDialog />
           <AddItemDialog />
         </div>

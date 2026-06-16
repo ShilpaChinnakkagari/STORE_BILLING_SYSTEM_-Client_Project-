@@ -12,46 +12,96 @@ import { useItems, useStockMovements } from "@/lib/store";
 import { PackagePlus } from "lucide-react";
 import { toast } from "sonner";
 
+const API_BASE_URL = 'http://localhost:8080/api';
+
 export function StockInDialog() {
-  const { items, findByCode, adjustStock, addItem } = useItems();
-  const { addMovement } = useStockMovements();
+  const { items, refresh } = useItems();
+  const { loadMovements, addMovement } = useStockMovements();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [qty, setQty] = useState("");
   const [cost, setCost] = useState("");
   const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const item = findByCode(code);
+  const item = items.find(i => i.code === code);
 
-  const submit = () => {
+  const submit = async () => {
     if (!item) {
-      toast.error("Pick a valid item");
+      toast.error("Please select a valid item");
       return;
     }
-    const q = parseFloat(qty);
-    if (!q || q <= 0) {
+    
+    const quantity = parseFloat(qty);
+    if (!quantity || quantity <= 0) {
       toast.error("Invalid quantity");
       return;
     }
-    const c = cost ? parseFloat(cost) : item.cost;
-    adjustStock(item.code, q);
-    if (c && c !== item.cost) {
-      addItem({ ...item, cost: c, stock: (item.stock ?? 0) + q });
+    
+    const costPrice = cost ? parseFloat(cost) : item.cost || 0;
+    if (costPrice < 0) {
+      toast.error("Invalid cost price");
+      return;
     }
-    addMovement({
-      id: "MV-" + Date.now(),
-      date: new Date().toISOString(),
-      code: item.code,
-      name: item.name,
-      unit: item.unit,
-      qty: q,
-      type: "in",
-      cost: c,
-      note: note.trim() || undefined,
-    });
-    toast.success(`Stocked in ${q} ${item.unit} of ${item.name}`);
-    setCode(""); setQty(""); setCost(""); setNote("");
-    setOpen(false);
+
+    setLoading(true);
+    
+    try {
+      const requestBody = {
+        itemCode: item.code,
+        quantity: quantity,
+        cost: costPrice,
+        note: note.trim() || "Stock in",
+        reference: "Manual entry",
+      };
+
+      console.log('📦 Sending Stock IN request:', requestBody);
+
+      const response = await fetch(`${API_BASE_URL}/stock/in`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      const responseData = await response.json();
+      console.log('✅ Stock IN response:', responseData);
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to record stock in');
+      }
+      
+      // Add to local movements
+      await addMovement({
+        id: responseData.id || 'mv-' + Date.now(),
+        date: new Date().toISOString(),
+        code: item.code,
+        name: item.name,
+        unit: item.unit,
+        qty: quantity,
+        type: 'in',
+        cost: costPrice,
+        note: note.trim() || 'Stock in',
+      });
+      
+      // Refresh items to show updated stock
+      console.log('🔄 Refreshing items...');
+      await refresh();
+      
+      toast.success(`Stocked in ${quantity} ${item.unit} of ${item.name}`);
+      
+      setCode("");
+      setQty("");
+      setCost("");
+      setNote("");
+      setOpen(false);
+    } catch (error: any) {
+      console.error('❌ Stock IN error:', error);
+      toast.error(error.message || "Failed to record stock in");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -62,14 +112,18 @@ export function StockInDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Record stock in</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Record stock in</DialogTitle>
+        </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <Label>Item</Label>
             <Select value={code} onValueChange={setCode}>
-              <SelectTrigger><SelectValue placeholder="Choose item" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose item" />
+              </SelectTrigger>
               <SelectContent>
-                {items.sort((a,b)=>a.name.localeCompare(b.name)).map((i) => (
+                {items.sort((a, b) => a.name.localeCompare(b.name)).map((i) => (
                   <SelectItem key={i.code} value={i.code}>
                     {i.code} · {i.name} ({i.unit})
                   </SelectItem>
@@ -79,24 +133,38 @@ export function StockInDialog() {
           </div>
           <div>
             <Label>Quantity ({item?.unit ?? "unit"})</Label>
-            <Input type="number" step="0.001" value={qty}
-              onChange={(e) => setQty(e.target.value)} placeholder="0" />
+            <Input 
+              type="number" 
+              step="0.001" 
+              value={qty}
+              onChange={(e) => setQty(e.target.value)} 
+              placeholder="0" 
+            />
           </div>
           <div>
             <Label>Buy price / unit</Label>
-            <Input type="number" step="0.01" value={cost}
+            <Input 
+              type="number" 
+              step="0.01" 
+              value={cost}
               onChange={(e) => setCost(e.target.value)}
-              placeholder={item?.cost?.toString() ?? "0.00"} />
+              placeholder={item?.cost?.toString() ?? "0.00"} 
+            />
           </div>
           <div className="col-span-2">
             <Label>Note</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="supplier / invoice (optional)" />
+            <Input 
+              value={note} 
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Supplier name / invoice (optional)" 
+            />
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={submit}>Save</Button>
+          <Button onClick={submit} disabled={loading}>
+            {loading ? "Saving..." : "Save"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
