@@ -409,7 +409,7 @@ export function ReportsTab() {
                 </div>
               ) : (
                 <>
-                  {/* Priority Legend - FIXED: Using {'>'} instead of > */}
+                  {/* Priority Legend */}
                   <div className="flex flex-wrap gap-3 mb-4 text-xs">
                     <span className="px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-300">
                       🔴 Priority 1: Stock ≤ 5 (Buy Now!)

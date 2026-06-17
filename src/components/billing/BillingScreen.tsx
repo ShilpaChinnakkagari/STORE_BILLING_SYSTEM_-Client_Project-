@@ -24,11 +24,10 @@ export function BillingScreen() {
   const { addSale } = useSales();
   const { shop } = useShop();
 
-  // State
   const [cart, setCart] = useState<CartLine[]>([]);
   const [itemCode, setItemCode] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [quantityInput, setQuantityInput] = useState("1"); // New state for input
+  const [quantityInput, setQuantityInput] = useState("1");
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [customerName, setCustomerName] = useState("");
   const [saleType, setSaleType] = useState<SaleType>("Cash");
@@ -40,10 +39,8 @@ export function BillingScreen() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const codeInputRef = useRef<HTMLInputElement>(null);
 
-  // Get unique categories
   const categories = ["All", ...new Set(items.map(i => i.category))];
 
-  // Filter items
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           item.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -51,7 +48,6 @@ export function BillingScreen() {
     return matchesSearch && matchesCategory;
   });
 
-  // Generate invoice number
   const generateInvoice = () => {
     const now = new Date();
     const prefix = "INV";
@@ -60,7 +56,6 @@ export function BillingScreen() {
     return `${prefix}-${timestamp}${random}`;
   };
 
-  // Initialize invoice on mount
   useEffect(() => {
     setInvoiceNo(generateInvoice());
     if (codeInputRef.current) {
@@ -68,7 +63,6 @@ export function BillingScreen() {
     }
   }, []);
 
-  // Handle item lookup
   const handleItemLookup = () => {
     if (!itemCode.trim()) {
       toast.error("Please enter an item code");
@@ -78,6 +72,13 @@ export function BillingScreen() {
     const item = items.find(i => i.code === itemCode.trim());
     if (!item) {
       toast.error(`Item "${itemCode}" not found`);
+      setItemCode("");
+      return;
+    }
+
+    const currentStock = item.stock || 0;
+    if (currentStock <= 0) {
+      toast.error(`"${item.name}" is OUT OF STOCK!`);
       setItemCode("");
       return;
     }
@@ -92,20 +93,17 @@ export function BillingScreen() {
     }
   };
 
-  // Handle item click from left panel
   const handleItemClick = (item: any) => {
-    if (item.stock <= 0) {
-      toast.error(`${item.name} is out of stock!`);
+    const currentStock = item.stock || 0;
+    if (currentStock <= 0) {
+      toast.error(`"${item.name}" is OUT OF STOCK!`);
       return;
     }
-    // Set selected item and its unit
     setSelectedItem(item);
     setItemCode(item.code);
-    // Add to cart with current quantity
     addItemToCart(item);
   };
 
-  // Get unit label for display
   const getUnitLabel = (unit: Unit): string => {
     const unitMap: Record<Unit, string> = {
       'pcs': 'pcs',
@@ -117,18 +115,15 @@ export function BillingScreen() {
     return unitMap[unit] || unit;
   };
 
-  // Add item to cart
   const addItemToCart = (item: any) => {
-    // Check stock
     const currentStock = item.stock || 0;
     if (currentStock <= 0) {
-      toast.error(`Item "${item.name}" is out of stock!`);
+      toast.error(`"${item.name}" is OUT OF STOCK!`);
       return;
     }
 
     const qtyToAdd = quantity;
 
-    // Check if already in cart
     const existing = cart.find(c => c.code === item.code);
     if (existing) {
       const newQty = existing.qty + qtyToAdd;
@@ -156,7 +151,6 @@ export function BillingScreen() {
     }
   };
 
-  // Update cart quantity
   const updateCart = (code: string, newQty: number) => {
     const item = items.find(i => i.code === code);
     if (item && newQty > (item.stock || 0)) {
@@ -166,13 +160,11 @@ export function BillingScreen() {
     setCart(cart.map(c => c.code === code ? { ...c, qty: newQty } : c));
   };
 
-  // Remove from cart
   const removeFromCart = (code: string) => {
     setCart(cart.filter(c => c.code !== code));
     toast.info("Item removed from cart");
   };
 
-  // Clear cart
   const clearCart = () => {
     setCart([]);
     setCustomerName("");
@@ -182,7 +174,6 @@ export function BillingScreen() {
     setQuantityInput("1");
   };
 
-  // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const discountAmount = (subtotal * discountPercent) / 100;
   const taxable = Math.max(0, subtotal - discountAmount);
@@ -190,11 +181,23 @@ export function BillingScreen() {
   const total = taxable + tax;
   const profit = cart.reduce((sum, item) => sum + (item.qty * (item.price - (item.cost || 0))), 0);
 
-  // Handle bill submission
   const handleSubmitBill = async () => {
     if (cart.length === 0) {
       toast.error("Cart is empty!");
       return;
+    }
+
+    // Double check stock before billing
+    for (const cartItem of cart) {
+      const item = items.find(i => i.code === cartItem.code);
+      if (!item) {
+        toast.error(`Item "${cartItem.name}" not found!`);
+        return;
+      }
+      if ((item.stock || 0) < cartItem.qty) {
+        toast.error(`Insufficient stock for "${item.name}". Available: ${item.stock}`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -225,7 +228,6 @@ export function BillingScreen() {
     }
   };
 
-  // Generate new invoice
   const generateNewInvoice = () => {
     setInvoiceNo(generateInvoice());
     clearCart();
@@ -235,34 +237,27 @@ export function BillingScreen() {
     }
   };
 
-  // Handle Enter key
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleItemLookup();
     }
   };
 
-  // Handle quantity input change - REPLACE, not append
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuantityInput(value);
-    if (value === "") {
-      // If empty, don't update quantity yet
-      return;
-    }
+    if (value === "") return;
     const numValue = Number(value);
     if (!isNaN(numValue) && numValue > 0) {
       setQuantity(numValue);
     }
   };
 
-  // Handle quick quantity button - REPLACE the value
   const handleQuickQty = (qty: number) => {
     setQuantity(qty);
     setQuantityInput(String(qty));
   };
 
-  // Handle quantity input blur - ensure valid number
   const handleQuantityBlur = () => {
     if (quantityInput === "" || Number(quantityInput) < 1) {
       setQuantity(1);
@@ -270,14 +265,12 @@ export function BillingScreen() {
     }
   };
 
-  // Quick quantity buttons
   const quickQty = [1, 2, 5, 10];
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-4">
       {/* LEFT SIDE - Item Browser */}
       <div className="w-1/2 flex flex-col border rounded-lg bg-card overflow-hidden">
-        {/* Search & Filter */}
         <div className="p-4 border-b space-y-2">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -305,7 +298,6 @@ export function BillingScreen() {
           </div>
         </div>
 
-        {/* Items Grid */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 gap-2">
             {filteredItems.map((item) => {
@@ -326,7 +318,7 @@ export function BillingScreen() {
                     if (stock > 0) {
                       handleItemClick(item);
                     } else {
-                      toast.error(`${item.name} is out of stock!`);
+                      toast.error(`${item.name} is OUT OF STOCK!`);
                     }
                   }}
                 >
@@ -343,8 +335,8 @@ export function BillingScreen() {
                   </div>
                   <div className="mt-2 flex justify-between items-center">
                     <span className="text-sm font-bold text-primary">{formatMoney(item.price)}</span>
-                    <span className="text-xs text-muted-foreground">
-                      Stock: {stock} {getUnitLabel(item.unit)}
+                    <span className={`text-xs ${stock <= 0 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                      {stock <= 0 ? 'OUT OF STOCK' : `Stock: ${stock} ${getUnitLabel(item.unit)}`}
                     </span>
                   </div>
                   <div className="mt-1">
@@ -362,7 +354,6 @@ export function BillingScreen() {
 
       {/* RIGHT SIDE - Billing */}
       <div className="w-1/2 flex flex-col gap-3">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Billing</h2>
@@ -375,7 +366,6 @@ export function BillingScreen() {
           </div>
         </div>
 
-        {/* Customer & Payment */}
         <div className="grid gap-2 md:grid-cols-3">
           <div>
             <Label className="text-xs">Customer</Label>
@@ -414,7 +404,6 @@ export function BillingScreen() {
           </div>
         </div>
 
-        {/* Quick Add Section with Unit Display - FIXED */}
         <div className="grid grid-cols-4 gap-2">
           <div className="col-span-2">
             <Label className="text-xs">Quick Add by Code</Label>
@@ -464,7 +453,6 @@ export function BillingScreen() {
           </div>
         </div>
 
-        {/* Cart Table */}
         <div className="flex-1 overflow-y-auto border rounded-lg bg-card">
           <Table>
             <TableHeader>
@@ -533,7 +521,6 @@ export function BillingScreen() {
           </Table>
         </div>
 
-        {/* Bill Summary */}
         <div className="grid grid-cols-4 gap-2">
           <div className="bg-muted/50 rounded-lg p-2 text-center">
             <p className="text-xs text-muted-foreground">Items</p>
@@ -553,7 +540,6 @@ export function BillingScreen() {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-2">
           <Button
             onClick={handleSubmitBill}
@@ -576,7 +562,6 @@ export function BillingScreen() {
         </div>
       </div>
 
-      {/* Receipt Modal */}
       {showReceipt && (
         <Receipt
           shop={shop}
