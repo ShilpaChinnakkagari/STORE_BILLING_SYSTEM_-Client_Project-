@@ -52,11 +52,20 @@ export const logout = async () => {
 
 // ============ ITEMS API ============
 export const getItems = async () => {
-  const response = await fetch(`${API_BASE_URL}/items`, {
-    headers: getHeaders(),
-  });
-  if (!response.ok) throw new Error('Failed to fetch items');
-  return response.json();
+  try {
+    console.log('🔄 Fetching items from API...');
+    const response = await fetch(`${API_BASE_URL}/items?t=${Date.now()}`, {
+      headers: getHeaders(),
+      cache: 'no-cache',
+    });
+    if (!response.ok) throw new Error('Failed to fetch items');
+    const data = await response.json();
+    console.log('✅ Items fetched:', data.length);
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching items:', error);
+    throw error;
+  }
 };
 
 export const getItemByCode = async (code: string) => {
@@ -68,32 +77,58 @@ export const getItemByCode = async (code: string) => {
 };
 
 export const createItem = async (item: any) => {
-  const response = await fetch(`${API_BASE_URL}/items`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(item),
-  });
-  if (!response.ok) throw new Error('Failed to create item');
-  return response.json();
+  try {
+    console.log('📤 Creating item:', item);
+    const response = await fetch(`${API_BASE_URL}/items`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(item),
+    });
+    if (!response.ok) throw new Error('Failed to create item');
+    const data = await response.json();
+    console.log('✅ Item created:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error creating item:', error);
+    throw error;
+  }
 };
 
 export const updateItem = async (code: string, item: any) => {
-  const response = await fetch(`${API_BASE_URL}/items/${code}`, {
-    method: 'PUT',
-    headers: getHeaders(),
-    body: JSON.stringify(item),
-  });
-  if (!response.ok) throw new Error('Failed to update item');
-  return response.json();
+  try {
+    console.log('📤 Updating item:', code);
+    const response = await fetch(`${API_BASE_URL}/items/${code}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(item),
+    });
+    if (!response.ok) throw new Error('Failed to update item');
+    const data = await response.json();
+    console.log('✅ Item updated:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error updating item:', error);
+    throw error;
+  }
 };
 
 export const deleteItem = async (code: string) => {
-  const response = await fetch(`${API_BASE_URL}/items/${code}`, {
-    method: 'DELETE',
-    headers: getHeaders(),
-  });
-  if (!response.ok) throw new Error('Failed to delete item');
-  return true;
+  try {
+    console.log(`🗑️ Deleting item: ${code}`);
+    const response = await fetch(`${API_BASE_URL}/items/${code}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to delete item: ${response.status} - ${errorText}`);
+    }
+    console.log(`✅ Item deleted: ${code}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting item:', error);
+    throw error;
+  }
 };
 
 // ============ SALES API ============
@@ -114,32 +149,36 @@ export const getSaleByInvoice = async (invoice: string) => {
 };
 
 export const createSale = async (saleData: any) => {
-  const response = await fetch(`${API_BASE_URL}/sales`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(saleData),
-  });
-  if (!response.ok) throw new Error('Failed to create sale');
-  return response.json();
-};
-
-// ============ EXPENSES API (FIXED) ============
-export const getExpenses = async () => {
   try {
-    console.log('📡 Fetching expenses from:', `${API_BASE_URL}/expenses`);
-    const response = await fetch(`${API_BASE_URL}/expenses`, {
+    console.log('📤 Creating sale:', saleData);
+    const response = await fetch(`${API_BASE_URL}/sales`, {
+      method: 'POST',
       headers: getHeaders(),
+      body: JSON.stringify(saleData),
     });
     
-    console.log('📡 Response status:', response.status);
-    
     if (!response.ok) {
-      throw new Error(`Failed to fetch expenses: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to create sale: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json();
-    console.log('📡 Raw expenses data:', data);
+    console.log('✅ Sale created:', data);
     return data;
+  } catch (error) {
+    console.error('❌ Error creating sale:', error);
+    throw error;
+  }
+};
+
+// ============ EXPENSES API ============
+export const getExpenses = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/expenses`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch expenses');
+    return response.json();
   } catch (error) {
     console.error('❌ Error fetching expenses:', error);
     throw error;
@@ -164,23 +203,13 @@ export const getExpensesByCategory = async (category: string) => {
 
 export const createExpense = async (expenseData: any) => {
   try {
-    console.log('📤 Creating expense:', expenseData);
     const response = await fetch(`${API_BASE_URL}/expenses`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(expenseData),
     });
-    
-    console.log('📤 Response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create expense: ${response.status} - ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log('📤 Created expense response:', data);
-    return data;
+    if (!response.ok) throw new Error('Failed to create expense');
+    return response.json();
   } catch (error) {
     console.error('❌ Error creating expense:', error);
     throw error;
@@ -189,19 +218,11 @@ export const createExpense = async (expenseData: any) => {
 
 export const deleteExpense = async (id: string) => {
   try {
-    console.log('🗑️ Deleting expense:', id);
     const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    
-    console.log('🗑️ Response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to delete expense: ${response.status} - ${errorText}`);
-    }
-    
+    if (!response.ok) throw new Error('Failed to delete expense');
     return true;
   } catch (error) {
     console.error('❌ Error deleting expense:', error);

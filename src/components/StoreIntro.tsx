@@ -6,7 +6,7 @@ const SLIDES = [
   {
     icon: ShoppingBasket,
     kicker: "Welcome",
-    title: "FreshMart POS",
+    title: "CretCom POS",
     body: "A modern point-of-sale built for grocery shops. Scan codes, weigh in quarters, and bill in seconds.",
     accent: "from-primary via-accent to-brand-cyan",
   },

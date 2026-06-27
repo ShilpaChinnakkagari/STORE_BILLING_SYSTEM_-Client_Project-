@@ -48,7 +48,7 @@ export function LoginScreen() {
               <ShoppingBasket className="h-8 w-8 text-white drop-shadow" />
             </div>
             <h1 className="text-gradient-tri text-3xl font-extrabold tracking-tight">
-              FreshMart POS
+              CretCom Billing
             </h1>
             <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
               <Sparkles className="h-3 w-3" /> Sign in to your billing dashboard

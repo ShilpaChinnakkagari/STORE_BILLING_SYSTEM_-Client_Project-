@@ -20,7 +20,7 @@ import { Receipt } from "./Receipt";
 type SaleType = "Cash" | "Card" | "UPI" | "Credit";
 
 export function BillingScreen() {
-  const { items, adjustStock } = useItems();
+  const { items, adjustStock, refresh: refreshItems } = useItems();
   const { addSale } = useSales();
   const { shop } = useShop();
 
@@ -61,6 +61,7 @@ export function BillingScreen() {
     if (codeInputRef.current) {
       codeInputRef.current.focus();
     }
+    refreshItems();
   }, []);
 
   const handleItemLookup = () => {
@@ -187,7 +188,6 @@ export function BillingScreen() {
       return;
     }
 
-    // Double check stock before billing
     for (const cartItem of cart) {
       const item = items.find(i => i.code === cartItem.code);
       if (!item) {
@@ -219,6 +219,9 @@ export function BillingScreen() {
       await addSale(sale);
       cart.forEach(item => adjustStock(item.code, -item.qty));
       toast.success(`Bill ${invoiceNo} generated successfully!`);
+      
+      await refreshItems();
+      
       setShowReceipt(true);
     } catch (error) {
       console.error("Error generating bill:", error);
@@ -235,6 +238,7 @@ export function BillingScreen() {
     if (codeInputRef.current) {
       codeInputRef.current.focus();
     }
+    refreshItems();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -269,7 +273,6 @@ export function BillingScreen() {
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-4">
-      {/* LEFT SIDE - Item Browser */}
       <div className="w-1/2 flex flex-col border rounded-lg bg-card overflow-hidden">
         <div className="p-4 border-b space-y-2">
           <div className="flex gap-2">
@@ -352,7 +355,6 @@ export function BillingScreen() {
         </div>
       </div>
 
-      {/* RIGHT SIDE - Billing */}
       <div className="w-1/2 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>

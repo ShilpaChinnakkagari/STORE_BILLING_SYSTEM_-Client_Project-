@@ -80,10 +80,14 @@ export function useItems() {
   const loadItems = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading items from API...');
       const data = await getItems();
+      console.log('✅ Items loaded:', data.length);
+      console.log('📦 Sprite stock:', data.find((i: any) => i.code === '991')?.stock);
       setItems(data);
     } catch (error) {
       console.error("Failed to load items:", error);
+      toast.error("Failed to load items");
     } finally {
       setLoading(false);
     }
@@ -97,9 +101,11 @@ export function useItems() {
     try {
       const newItem = await createItem(item);
       setItems(prev => [...prev, newItem]);
+      toast.success(`"${newItem.name}" added successfully!`);
       return newItem;
     } catch (error) {
       console.error("Failed to add item:", error);
+      toast.error("Failed to add item");
       throw error;
     }
   };
@@ -108,19 +114,32 @@ export function useItems() {
     try {
       const updated = await updateItem(code, item);
       setItems(prev => prev.map(i => i.code === code ? updated : i));
+      toast.success(`"${updated.name}" updated successfully!`);
       return updated;
     } catch (error) {
       console.error("Failed to update item:", error);
+      toast.error("Failed to update item");
       throw error;
     }
   };
 
   const removeItem = async (code: string) => {
     try {
-      await deleteItem(code);
-      setItems(prev => prev.filter(i => i.code !== code));
+      console.log(`🗑️ Deleting item: ${code}`);
+      const result = await deleteItem(code);
+      console.log(`✅ Delete result:`, result);
+      
+      setItems(prev => {
+        const filtered = prev.filter(i => i.code !== code);
+        console.log(`📊 Items after deletion: ${filtered.length}`);
+        return filtered;
+      });
+      
+      await loadItems();
+      return true;
     } catch (error) {
       console.error("Failed to delete item:", error);
+      toast.error(`Failed to delete item: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw error;
     }
   };
@@ -137,13 +156,22 @@ export function useItems() {
     await loadItems();
   };
 
-  return { items, loading, addItem, updateItem: updateItemAPI, removeItem, findByCode, adjustStock, refresh };
+  return { 
+    items, 
+    loading, 
+    addItem, 
+    updateItem: updateItemAPI, 
+    removeItem, 
+    findByCode, 
+    adjustStock, 
+    refresh 
+  };
 }
 
 // ============ SHOP HOOK ============
 const SHOP_DEFAULT: ShopInfo = {
-  name: "FreshMart",
-  address: "12 Market Street, City",
+  name: "CretCom",
+  address: "Angallu, Madanapalle",
   phone: "+91 98765 43210",
   taxPercent: 5,
 };
@@ -209,6 +237,7 @@ export function useSales() {
         cashierName: sale.cashier || "Admin",
         saleType: sale.saleType || "Cash",
         discount: sale.discount,
+        tax: sale.tax,
         cartLines: sale.lines.map(line => ({
           itemCode: line.code,
           quantity: line.qty,
@@ -325,7 +354,7 @@ export function useStockMovements() {
   return { movements, loading, addMovement, loadMovements };
 }
 
-// ============ EXPENSES HOOK (FIXED - Full CRUD) ============
+// ============ EXPENSES HOOK ============
 export function useExpenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -336,7 +365,6 @@ export function useExpenses() {
       const data = await getExpenses();
       console.log('📊 Raw expenses from API:', data);
       
-      // ✅ Map API response to frontend format
       const formattedExpenses = Array.isArray(data) ? data.map((item: any) => ({
         id: item.id || item.expenseId,
         date: item.expenseDate || item.date || new Date().toISOString(),
@@ -348,13 +376,11 @@ export function useExpenses() {
       console.log('📊 Formatted expenses:', formattedExpenses);
       setExpenses(formattedExpenses);
       
-      // Save to localStorage as backup
       if (typeof window !== 'undefined') {
         localStorage.setItem("grocery.expenses.v1", JSON.stringify(formattedExpenses));
       }
     } catch (error) {
       console.error("Failed to load expenses:", error);
-      // ✅ Try to load from localStorage as fallback
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem("grocery.expenses.v1");
         if (stored) {
@@ -391,7 +417,6 @@ export function useExpenses() {
       
       console.log('📥 Response from createExpense:', newExpense);
       
-      // ✅ Format the response
       const formattedExpense: Expense = {
         id: newExpense.id || expense.id,
         date: newExpense.expenseDate || expense.date || new Date().toISOString(),
@@ -402,7 +427,6 @@ export function useExpenses() {
       
       setExpenses(prev => [formattedExpense, ...prev]);
       
-      // Update localStorage
       if (typeof window !== 'undefined') {
         const updated = [formattedExpense, ...expenses];
         localStorage.setItem("grocery.expenses.v1", JSON.stringify(updated));
@@ -422,7 +446,6 @@ export function useExpenses() {
       await deleteExpense(id);
       setExpenses(prev => prev.filter(e => e.id !== id));
       
-      // Update localStorage
       if (typeof window !== 'undefined') {
         const updated = expenses.filter(e => e.id !== id);
         localStorage.setItem("grocery.expenses.v1", JSON.stringify(updated));
